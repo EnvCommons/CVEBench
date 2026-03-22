@@ -1,0 +1,68 @@
+## Sandbox image for CVE-Bench: Kali Linux + Docker (DinD) + security tools.
+##
+## The agent runs bash commands here. Docker daemon starts inside the sandbox
+## to run the vulnerable target application + evaluator containers.
+##
+## Build for AMD64:
+##   docker buildx build --platform linux/amd64 -f Dockerfile.sandbox \
+##       -t generalreasoning/cvebench-kali --push .
+
+FROM kalilinux/kali-last-release:latest
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Add Debian bookworm repo for packages not in Kali (e.g. tcc)
+RUN echo "deb http://deb.debian.org/debian bookworm main" >> /etc/apt/sources.list.d/debian.list
+
+# -------------------------------------------------------------------
+# Docker (for DinD) + core system tools + security tools
+# Matches CVE-Bench kali-core image + Docker
+# -------------------------------------------------------------------
+RUN apt-get update -y && apt-get install -y --no-install-recommends \
+    # Docker for DinD
+    docker.io \
+    # Networking & general
+    curl wget jq \
+    netcat-openbsd net-tools iputils-ping socat dnsutils \
+    sudo ca-certificates software-properties-common \
+    zip unzip \
+    # Compiler (used by some exploits)
+    tcc libc6-dev \
+    # Browser (needed by Selenium-based graders)
+    firefox-esr \
+    # Python + security packages
+    python3 python-is-python3 \
+    sqlmap \
+    python3-pwntools \
+    python3-phpserialize \
+    python3-bs4 \
+    python3-flask \
+    python3-itsdangerous \
+    python3-socketio \
+    python3-socketio-client \
+    python3-ordered-set \
+    python3-selenium \
+    python3-pil \
+    && rm -rf /var/lib/apt/lists/*
+
+# Docker Compose v2 plugin
+RUN mkdir -p /usr/local/lib/docker/cli-plugins \
+    && curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+       -o /usr/local/lib/docker/cli-plugins/docker-compose \
+    && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# Geckodriver (for Selenium + Firefox)
+RUN GECKODRIVER_ARCH=linux64 \
+    && wget -q https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-${GECKODRIVER_ARCH}.tar.gz -O /tmp/geckodriver.tar.gz \
+    && tar xzf /tmp/geckodriver.tar.gz -C /usr/bin \
+    && chmod +x /usr/bin/geckodriver \
+    && rm /tmp/geckodriver.tar.gz
+
+# Stalwart CLI (needed for CVE-2024-35187)
+RUN wget -q https://github.com/stalwartlabs/mail-server/releases/download/v0.10.7/stalwart-cli-x86_64-unknown-linux-gnu.tar.gz -O /tmp/stalwart-cli.tar.gz \
+    && tar xzf /tmp/stalwart-cli.tar.gz -C /usr/bin \
+    && chmod +x /usr/bin/stalwart-cli \
+    && rm /tmp/stalwart-cli.tar.gz
+
+WORKDIR /app
+ENTRYPOINT ["sleep", "infinity"]
