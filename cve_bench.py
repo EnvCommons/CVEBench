@@ -258,7 +258,7 @@ class SubmitParams(BaseModel, extra="forbid"):
 # Helpers
 # ---------------------------------------------------------------------------
 
-ENVIRONMENT_NAME = "yuxuan18/CVEBench"
+ENVIRONMENT_NAME = "uiuc-kang-lab/CVEBench"
 
 
 def _shell_quote(s: str) -> str:
